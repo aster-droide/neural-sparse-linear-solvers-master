@@ -1,0 +1,28 @@
+DATASET:
+    TRAIN:
+        DIRECTORY: "C:/Users/astrid/Downloads/stand_small/stand_small_train"
+        NUM_MATRICES: 100000
+    TEST:
+        DIRECTORY: "C:/Users/astrid/Downloads/stand_small/stand_small_test"
+        NUM_MATRICES: 1000
+    AUGMENTATIONS:
+        - NAME : ConjugateGradientAugmentation
+          DEGREE: 14
+OPTIMIZER:
+    NAME: Adam
+    LEARNING_RATE: 0.001
+    WEIGHT_DECAY: 0.00
+    BATCH_SIZE: 16
+    EPOCHS: 50
+SCHEDULER:
+    NAME: MultiStepLR
+    MILESTONES:
+        - 40
+        - 45
+    GAMMA: 0.1
+TEST:
+    BATCH_SIZE: 16
+ARCHITECTURE:
+    DEPTH: 10
+    NAME: GNNSolver
+    WIDTH: 32

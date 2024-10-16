@@ -5,8 +5,11 @@ import torch_scatter
 import pytorch_lightning as pl
 from torch import Tensor
 
-from .metrics import L1Distance, L2Distance, L2Ratio, VectorAngle
+from .metrics import L1Distance, L2Distance, L2Ratio, VectorAngle, RMSE
 from .losses import CosineDistanceLoss
+
+import os
+import numpy as np
 
 
 class NeuralSolver(pl.LightningModule):
@@ -35,8 +38,14 @@ class NeuralSolver(pl.LightningModule):
                 "l2_distance": L2Distance(),
                 "l1_distance": L1Distance(),
                 "angle": VectorAngle(),
+                "rmse": RMSE()
             }
         )
+
+    # ensure all metrics are set to GPU device
+    def set_device_for_metrics(self, device):
+        for metric in self.systemwise_metrics.values():
+            metric.to(device)
 
     def set_model(self, model: torch.nn.Module):
         self.model = model
@@ -87,11 +96,45 @@ class NeuralSolver(pl.LightningModule):
     ) -> None:
         x, edge_index, edge_weight, batch_map, y, b = batch
         n_systems = batch_map.max().item() + 1
+
+        # verify contents
+        # print(f"Batch {batch_idx} contents:")
+        # print(f"x (Input features): shape = {x.shape}, values = {x[:5]}")
+        # print(f"edge_index (Graph edges): shape = {edge_index.shape}, values = {edge_index[:, :5]}")
+        # print(f"edge_weight (Edge weights): shape = {edge_weight.shape}, values = {edge_weight[:5]}")
+        # print(f"batch_map (Batch indices): shape = {batch_map.shape}, values = {batch_map[:5]}")
+        # print(f"y (Real solution x): shape = {y.shape}, values = {y[:5]}")
+        # print(f"b (Target vector): shape = {b.shape}, values = {b[:5]}")
+
+        # set device for metric from GPU
+        device = y.device
+        self.set_device_for_metrics(device)
+
         matrix = torch.sparse_coo_tensor(
             edge_index, edge_weight, (b.size(0), b.size(0)), dtype=torch.float64
         )
         y_direction = self(x, edge_index, edge_weight.to(torch.float32), batch_map)
         y_direction = y_direction.to(torch.float64)
+
+        # store y_direction (save generated x vectors)
+        self.log(f"{phase_name}_y_direction", y_direction)
+
+        save_dir = f"./predictions/{phase_name}/"
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, f"batch_{batch_idx}.npz")
+
+        # store original x vector for comparison
+        real_x = batch[4].cpu().numpy()
+
+        np.savez(
+            save_path,
+            A_indices=edge_index.cpu().numpy(),
+            A_values=edge_weight.cpu().numpy(),
+            x_model=y_direction.detach().cpu().numpy(),  # save model-generated x
+            x_real=real_x, # save real x
+            b=b.cpu().numpy(),
+        )
+
         p_direction = torch.mv(matrix, y_direction)
         p_squared_norm = torch_scatter.scatter_sum(p_direction.square(), batch_map)
         bp_dot_product = torch_scatter.scatter_sum(p_direction * b, batch_map)

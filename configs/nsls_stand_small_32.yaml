@@ -1,10 +1,10 @@
 DATASET:
     TRAIN:
-        DIRECTORY: "C:/Users/astrid/Downloads/stand_small/stand_small_train"
-        NUM_MATRICES: 100000
+        DIRECTORY: "C:/Users/astrid/Downloads/stand_small/train"
+        NUM_MATRICES: 100
     TEST:
-        DIRECTORY: "C:/Users/astrid/Downloads/stand_small/stand_small_test"
-        NUM_MATRICES: 1000
+        DIRECTORY: "C:/Users/astrid/Downloads/stand_small/test"
+        NUM_MATRICES: 20
     AUGMENTATIONS:
         - NAME : ConjugateGradientAugmentation
           DEGREE: 14
@@ -21,7 +21,7 @@ SCHEDULER:
         - 45
     GAMMA: 0.1
 TEST:
-    BATCH_SIZE: 16
+    BATCH_SIZE: 1
 ARCHITECTURE:
     DEPTH: 10
     NAME: GNNSolver

@@ -1,8 +1,8 @@
 import torch
-
 from torch import Tensor
 from torchmetrics import Metric
 from torch_scatter import scatter_sum
+
 
 
 class L1Distance(Metric):
@@ -91,6 +91,22 @@ class L2Ratio(Metric):
 
     def compute(self) -> Tensor:
         return self.ratio / self.total
+
+
+class RMSE(Metric):
+    def __init__(self, dist_sync_on_step: bool = False):
+        super().__init__(dist_sync_on_step=dist_sync_on_step)
+        self.add_state("sum_squared_error", default=torch.tensor(0, dtype=torch.float64), dist_reduce_fx="sum")
+        self.add_state("total", default=torch.tensor(0, dtype=torch.float64), dist_reduce_fx="sum")
+
+    def update(self, preds: Tensor, target: Tensor, batch_map: Tensor) -> None:
+        squared_error = torch.square(preds - target)
+        self.sum_squared_error += torch.sum(squared_error)
+        self.total += batch_map.max() + 1
+
+    def compute(self) -> Tensor:
+        return torch.sqrt(self.sum_squared_error / self.total)
+
 
 
 class VectorAngle(Metric):

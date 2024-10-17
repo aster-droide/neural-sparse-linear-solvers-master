@@ -11,6 +11,8 @@ batch_files = [f for f in os.listdir(predictions_folder) if f.endswith('.npz')]
 total_scipy_rmse = 0
 total_scipy_residual = 0
 total_model_vs_scipy_rmse = 0
+total_normalised_scipy_residual_norm = 0
+total_normalised_scipy_residual_diag = 0
 num_batches = len(batch_files)
 
 # iterate over each batch file & compute the metrics
@@ -44,6 +46,13 @@ for batch_file in batch_files:
     # compute residual for Scipy-computed x
     scipy_residual = np.linalg.norm(b_scipy_predicted - b)
 
+    # normalising residuals
+    norm_A = np.linalg.norm(A_dense)
+    max_diag_A = np.max(np.diag(A_dense))
+
+    normalised_scipy_residual_norm = scipy_residual / norm_A
+    normalised_scipy_residual_diag = scipy_residual / max_diag_A
+
     # compute the RMSE between model-generated x and Scipy-computed x
     x_diff = x_model - x_scipy
     model_vs_scipy_rmse = np.sqrt(np.mean(x_diff ** 2))
@@ -52,6 +61,8 @@ for batch_file in batch_files:
     total_scipy_rmse += scipy_rmse
     total_scipy_residual += scipy_residual
     total_model_vs_scipy_rmse += model_vs_scipy_rmse
+    total_normalised_scipy_residual_norm += normalised_scipy_residual_norm
+    total_normalised_scipy_residual_diag += normalised_scipy_residual_diag
 
     # individual results for each batch
     print(f"Results for {batch_file}:")
@@ -69,3 +80,5 @@ avg_model_vs_scipy_rmse = total_model_vs_scipy_rmse / num_batches
 print(f"Scipy RMSE over all batches: {avg_scipy_rmse}")
 print(f"Scipy RMSE residual over all batches: {avg_scipy_residual}")
 print(f"RMSE between model-generated x and Scipy-computed x over all batches: {avg_model_vs_scipy_rmse}")
+print(f"Total norm A {total_normalised_scipy_residual_norm}")
+print(f"Total diag A {total_normalised_scipy_residual_diag}")

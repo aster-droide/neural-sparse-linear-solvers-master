@@ -153,11 +153,33 @@ class NeuralSolver(pl.LightningModule):
                 metric(y_hat, y, batch_map),
                 batch_size=n_systems,
             )
+            # log residual metrics related to b_hat (A * predicted x)
+            residual_metric_value = metric(b_hat, b, batch_map)
             self.log(
                 f"residual/{phase_name}_{metric_name}",
-                metric(b_hat, b, batch_map),
+                residual_metric_value,
                 batch_size=n_systems,
             )
+
+            # normalise the residual (b_hat - b) by norm or max diagonal of A
+            matrix = torch.sparse_coo_tensor(
+                edge_index, edge_weight, (b.size(0), b.size(0)), dtype=torch.float64
+            )
+
+            # norm of A
+            norm_A = torch.norm(matrix.to_dense(), p='fro').item()
+            # Max of diagonal elements of A
+            max_diag_A = torch.max(torch.diag(matrix.to_dense())).item()
+
+            # normalise the residual RMSE
+            normalized_residual_norm = residual_metric_value / norm_A
+            normalized_residual_diag = residual_metric_value / max_diag_A
+
+            # log normalized residuals
+            self.log(f"residual/{phase_name}_{metric_name}_normalized_by_norm", normalized_residual_norm,
+                     batch_size=n_systems)
+            self.log(f"residual/{phase_name}_{metric_name}_normalized_by_diag", normalized_residual_diag,
+                     batch_size=n_systems)
         self.log(
             f"metrics/{phase_name}_absolute_error",
             self.elementwise_metric(y_hat, y),
